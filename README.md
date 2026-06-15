@@ -1,5 +1,3 @@
-# ecs-colony-sim-engine
-
 # Unity GPU Frustum Culling & ECS Architecture
 
 A high-performance, data-oriented rendering and culling system built for Unity using Entity Component System (ECS) principles and HLSL Compute Shaders.
