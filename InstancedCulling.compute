@@ -1,0 +1,98 @@
+#pragma kernel CullPawns
+#pragma kernel CullGrid
+
+// ==========================================
+// DATA STRUCTURES & BUFFERS
+// ==========================================
+
+struct InstanceData 
+{
+    float4x4 instanceMatrix; // Explicit naming to prevent graphics API keyword collisions
+    float spriteIndex;
+    float3 padding;          // 16-byte alignment padding to ensure predictable GPU memory layouts
+};
+
+// --- Pawn Input Buffers (Parallel Arrays / SOA Design) ---
+StructuredBuffer<float4x4> InputMatrices;
+StructuredBuffer<float> InputSpriteIndices;
+
+// --- Grid Input Buffers (AOS Design) ---
+StructuredBuffer<InstanceData> InputGridData;
+
+// --- Shared Output Stream ---
+AppendStructuredBuffer<InstanceData> VisibleInstances;
+
+// ==========================================
+// UNIFORMS & GLOBAL STATE
+// ==========================================
+
+float4 _FrustumPlanes[6];
+uint _InstanceCount;
+float _BoundsRadius;
+
+// ==========================================
+// HELPER FUNCTIONS
+// ==========================================
+
+/**
+ * Performs a frustum culling check against an object's bounding sphere.
+ */
+bool IsVisible(float3 pos) 
+{
+    [unroll] // Performance optimization: Eliminate loop overhead for fixed-size iterations
+    for(int i = 0; i < 6; i++) 
+    {
+        if (dot(_FrustumPlanes[i].xyz, pos) + _FrustumPlanes[i].w < -_BoundsRadius) 
+        {
+            return false; // Culled: Object lies entirely outside at least one plane
+        }
+    }
+    return true;
+}
+
+/**
+ * Extracts the 3D translation vector safely from a 4x4 transformation matrix.
+ * Note: Avoids using array-subscript syntax (mat[3].xyz) which is prone to column/row major 
+ * inversion bugs when cross-compiling between graphics APIs (e.g., DirectX vs Vulkan/Metal).
+ */
+float3 ExtractTranslation(float4x4 mat)
+{
+    return float3(mat._m03, mat._m13, mat._m23);
+}
+
+// ==========================================
+// COMPUTE KERNELS
+// ==========================================
+
+[numthreads(64, 1, 1)]
+void CullPawns (uint3 id : SV_DispatchThreadID) 
+{
+    if (id.x >= _InstanceCount) return;
+    
+    float4x4 mat = InputMatrices[id.x];
+    float3 pos = ExtractTranslation(mat);
+    
+    if (IsVisible(pos)) 
+    {
+        InstanceData data;
+        data.instanceMatrix = mat;
+        data.spriteIndex = InputSpriteIndices[id.x];
+        data.padding = float3(0, 0, 0);
+        
+        VisibleInstances.Append(data);
+    }
+}
+
+[numthreads(64, 1, 1)]
+void CullGrid (uint3 id : SV_DispatchThreadID) 
+{
+    if (id.x >= _InstanceCount) return;
+
+    InstanceData data = InputGridData[id.x];
+    float3 pos = ExtractTranslation(data.instanceMatrix);
+    
+    if (IsVisible(pos)) 
+    {
+        VisibleInstances.Append(data);
+    }
+}
