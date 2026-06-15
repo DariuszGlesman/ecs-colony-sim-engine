@@ -29,14 +29,6 @@ The culling system reads transformation matrices and sprite indices from structu
 * Unity (2022.3 LTS or newer recommended)
 * A target platform that supports Compute Shaders (DirectX 11/12, Vulkan, Metal)
 
-### Installation
-1. Clone the repository directly to your machine:
-   ```bash
-   git clone [https://github.com/YourUsername/YourRepoName.git](https://github.com/YourUsername/YourRepoName.git)
-Open the project folder via the Unity Hub.
-
-Open the main scene and ensure your project settings are configured for Compute Shader support.
-
 🤝 Contributing
 As this is primarily a portfolio piece, direct contributions are not actively expected, but feedback, forks, and pull requests regarding optimization are always welcome!
 
